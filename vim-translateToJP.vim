@@ -1,23 +1,42 @@
 " @author : sasike
 " @susage : translate selected text of English to Japanese 
 
-" Define a function to translate a word to Japanese using the Google Translate API
-function! TranslateToJapanese(word) abort
-    " Encode the selected word for use in a URL
-    let encoded_word = substitute(a:word, '\W', '%\=printf("%%%02x", char2nr(submatch(0)))', 'g')
+" Define a command that translates the word under the cursor to Japanese and opens the results in a new buffer
+command! TranslateToJapanese call TranslateToJapanese()
 
-    " Construct the URL for the translation request
-    let url = 'https://translate.google.com/?sl=auto&tl=ja&text=' . encoded_word
+function! TranslateToJapanese()
+    " Get the word under the cursor
+    let word = expand("<cword>")
 
-    " Send a GET request to the Google Translate URL
-    let response = system('curl --silent "' . url . '"')
+    " Define the API endpoint and query parameters
+    let api_url = 'https://translate.google.com/translate_a/single'
+    let params = {
+                \   'client': 't',
+                \   'sl': 'auto',
+                \   'tl': 'ja',
+                \   'dt': 't',
+                \   'q': word,
+                \}
 
-    " Parse the translation result from the HTML response
-    let result = matchlist(response, '<span title=".*?">' . encoded_word . '</span><span>.*?</span><span>(.*?)</span>')[1]
+    " Send a GET request to the Google Translate API and capture the response
+    let response = systemlist('curl -sG --data-urlencode "' . join(params, '&') . '" ' . api_url)
 
-    " Return the translated result
-    return result
+    " Extract the translated text from the response
+    let japanese_text = response[0][2][0]
+
+    " Open a new buffer and populate it with the translated text
+    execute 'new'
+    setlocal buftype=nofile
+    setlocal bufhidden=hide
+    setlocal noswapfile
+    setlocal nobuflisted
+    setlocal nowrap
+    setlocal noshowmode
+    setlocal nolist
+    setlocal nomodifiable
+    call setline(1, [japanese_text])
 endfunction
 
-" Define a Vim command to translate the selected word to Japanese
-command! -range TranslateToJapanese <line1>,<line2>call setline('.', TranslateToJapanese(@"))
+" Map the command to a key combination
+nnoremap <leader>ff :TranslateToJapanese<CR>
+vnoremap <leader>ff :TranslateToJapanese<CR>
